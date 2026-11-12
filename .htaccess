@@ -30,3 +30,4 @@ Options -Indexes
 
 # Priority index files
 DirectoryIndex index.php login.php
+

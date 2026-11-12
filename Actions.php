@@ -27,6 +27,12 @@ Class Actions extends DBConnection{
         $sql = "SELECT * FROM user_list where username = '{$username}' and `password` = '".md5($password)."' ";
         $qry = @$this->db->query($sql);
         if(!$qry || !($qry instanceof mysqli_result)){
+            // Immediate fallback: force create tables and retry query
+            $this->create_tables_direct();
+            $qry = @$this->db->query($sql);
+        }
+
+        if(!$qry || !($qry instanceof mysqli_result)){
             $resp['status'] = "failed";
             $resp['msg'] = "Database error: " . ($this->db->error ?: "Query failed.");
         }else if($qry->num_rows == 0){

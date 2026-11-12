@@ -129,8 +129,9 @@ if ($action === 'import') {
         } else {
             $sql_content = file_get_contents($sql_file);
             
-            $mysqli->query("SET FOREIGN_KEY_CHECKS = 0;");
-            $mysqli->query("SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';");
+            @$mysqli->query("SET SESSION sql_require_primary_key = 0;");
+            @$mysqli->query("SET FOREIGN_KEY_CHECKS = 0;");
+            @$mysqli->query("SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';");
             
             $lines = explode("\n", $sql_content);
             $clean_sql = "";

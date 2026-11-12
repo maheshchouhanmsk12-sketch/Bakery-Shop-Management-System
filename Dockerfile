@@ -42,3 +42,4 @@ EXPOSE 10000
 
 # Execute custom startup script
 CMD ["/bin/bash", "/var/www/html/start.sh"]
+

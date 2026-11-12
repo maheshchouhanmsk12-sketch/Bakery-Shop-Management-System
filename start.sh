@@ -29,3 +29,4 @@ sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOve
 
 echo "==> Apache configuration updated successfully. Starting web server..."
 exec apache2-foreground
+
