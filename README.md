@@ -14,12 +14,18 @@ A modern, responsive, and robust **Bakery Shop Management System** built with PH
 
 ---
 
-## 🔑 Default Credentials
+## 🔑 System Login Credentials (ID & Passwords)
 
-| Role | Username | Password | Access Level |
+> [!IMPORTANT]
+> ### 👑 Primary Admin Login:
+> - **Username (ID):** `admin`
+> - **Password:** `admin123`
+
+| Role | Username (ID) | Password | Access Level |
 | :--- | :--- | :--- | :--- |
-| **Administrator** | `admin` | `admin123` | Full Access (POS, Stock, Categories, Users, Maintenance) |
-| **Staff User** | `cblake` | `cblake123` | POS & Sales Reports |
+| **👑 Administrator** | `admin` | `admin123` | Full Access (POS, Stock, Categories, Users, Maintenance) |
+| **👤 Claire Blake (Staff)** | `cblake` | `cblake` | POS & Sales Reports |
+| **👤 Mark Cooper (Admin)** | `mcooper` | `mcooper` | Full Admin Access |
 
 ---
 
