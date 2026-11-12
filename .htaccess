@@ -1,0 +1,32 @@
+# Disable directory browsing
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Render Reverse Proxy Fix: Forwarded Proto SSL enforcement without leaking port 10000
+    RewriteCond %{HTTP:X-Forwarded-Proto} =http
+    RewriteCond %{REQUEST_METHOD} !POST
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Smart port-stripping trailing slash for directories (prevents :10000 port leak)
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteCond %{REQUEST_URI} !(.*)/$
+    RewriteRule ^(.*)$ $1/ [L,R=301]
+
+    # Block direct HTTP access to backups, configuration, shell scripts, and raw SQL dumps
+    <FilesMatch "\.(sql|original|ini|log|sh)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Essential security headers
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Priority index files
+DirectoryIndex index.php login.php

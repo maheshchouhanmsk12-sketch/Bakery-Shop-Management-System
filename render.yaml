@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: bakery-shop-management-system
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    branch: main
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DB_SERVER
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: BASE_URL
+        sync: false
