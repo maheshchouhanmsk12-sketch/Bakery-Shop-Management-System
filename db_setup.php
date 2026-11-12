@@ -8,6 +8,10 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+if (function_exists('mysqli_report')) {
+    mysqli_report(MYSQLI_REPORT_OFF);
+}
+
 // Helper to get environment or POST values
 function get_db_config() {
     $db_url = getenv('DATABASE_URL') ?: getenv('MYSQL_URL');
@@ -66,12 +70,16 @@ $message_type = 'info';
 
 // Database connection factory with SSL
 function get_db_connection($cfg, &$err = null) {
+    if (function_exists('mysqli_report')) {
+        mysqli_report(MYSQLI_REPORT_OFF);
+    }
+
     $mysqli = mysqli_init();
     if (!$mysqli) {
         $err = "mysqli_init failed";
         return null;
     }
-    $mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 8);
+    $mysqli->options(MYSQLI_OPT_CONNECT_TIMEOUT, 6);
 
     $flags = 0;
     if ($cfg['ssl']) {
@@ -82,23 +90,28 @@ function get_db_connection($cfg, &$err = null) {
         $flags |= MYSQLI_CLIENT_SSL;
     }
 
-    $connected = @$mysqli->real_connect(
-        $cfg['host'],
-        $cfg['user'],
-        $cfg['pass'],
-        $cfg['name'],
-        $cfg['port'],
-        null,
-        $flags
-    );
+    try {
+        $connected = @$mysqli->real_connect(
+            $cfg['host'],
+            $cfg['user'],
+            $cfg['pass'],
+            $cfg['name'],
+            $cfg['port'],
+            null,
+            $flags
+        );
 
-    if (!$connected || $mysqli->connect_errno) {
-        $err = $mysqli->connect_error ?: "Failed to connect to MySQL on {$cfg['host']}:{$cfg['port']}";
+        if (!$connected || $mysqli->connect_errno) {
+            $err = $mysqli->connect_error ?: "Failed to connect to MySQL on {$cfg['host']}:{$cfg['port']}";
+            return null;
+        }
+
+        $mysqli->set_charset("utf8mb4");
+        return $mysqli;
+    } catch (\Throwable $e) {
+        $err = $e->getMessage();
         return null;
     }
-
-    $mysqli->set_charset("utf8mb4");
-    return $mysqli;
 }
 
 // Handle Import Action
@@ -114,14 +127,11 @@ if ($action === 'import') {
             $message = "Cannot import. Database connection failed: " . htmlspecialchars($conn_err);
             $message_type = "danger";
         } else {
-            // Read and clean SQL dump
             $sql_content = file_get_contents($sql_file);
             
-            // Clean comments and execute with foreign key checks disabled
             $mysqli->query("SET FOREIGN_KEY_CHECKS = 0;");
             $mysqli->query("SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';");
             
-            // Break down statements
             $lines = explode("\n", $sql_content);
             $clean_sql = "";
             foreach ($lines as $line) {
@@ -132,7 +142,6 @@ if ($action === 'import') {
                 $clean_sql .= $line . "\n";
             }
 
-            // Split queries safely by semicolon followed by newline
             $statements = preg_split('/;\s*[\r\n]+/', $clean_sql);
             $success_count = 0;
             $error_count = 0;
@@ -144,7 +153,6 @@ if ($action === 'import') {
                     if (@$mysqli->query($stmt)) {
                         $success_count++;
                     } else {
-                        // Ignore minor drop table errors if not exists
                         $error_count++;
                         if (count($errors) < 5) {
                             $errors[] = $mysqli->error;
@@ -209,13 +217,11 @@ if ($check_conn) {
     $health['connected'] = true;
     $health['version'] = $check_conn->server_info;
     
-    // Check SSL status
     $ssl_res = @$check_conn->query("SHOW STATUS LIKE 'Ssl_cipher'");
     if ($ssl_res && $row = $ssl_res->fetch_assoc()) {
         $health['ssl_cipher'] = !empty($row['Value']) ? $row['Value'] : 'Encrypted (SSL Active)';
     }
 
-    // Check Tables
     $req_tables = ['category_list', 'product_list', 'stock_list', 'transaction_items', 'transaction_list', 'user_list'];
     foreach ($req_tables as $tbl) {
         $res = @$check_conn->query("SELECT COUNT(*) as cnt FROM `{$tbl}`");
@@ -232,7 +238,6 @@ if ($check_conn) {
         }
     }
 
-    // Check Admin user
     $adm_res = @$check_conn->query("SELECT user_id, username FROM user_list WHERE username = 'admin' LIMIT 1");
     if ($adm_res && $adm_res->num_rows > 0) {
         $health['admin_status'] = 'Found (admin / admin123)';

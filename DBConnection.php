@@ -11,6 +11,11 @@ class DBConnection {
     public $error = null;
 
     function __construct(){
+        // Disable mysqli throwing unhandled exceptions in PHP 8.1+
+        if (function_exists('mysqli_report')) {
+            mysqli_report(MYSQLI_REPORT_OFF);
+        }
+
         // Check for URI style first (DATABASE_URL or MYSQL_URL)
         $db_url = getenv('DATABASE_URL') ?: getenv('MYSQL_URL');
         if(!empty($db_url)){
@@ -59,23 +64,28 @@ class DBConnection {
             $client_flags |= MYSQLI_CLIENT_SSL;
         }
 
-        // Attempt connection with custom 5-digit port support
-        $connected = @$mysqli->real_connect(
-            $this->host,
-            $this->username,
-            $this->password,
-            $this->database,
-            $this->port,
-            null,
-            $client_flags
-        );
+        // Attempt connection safely with custom port and try/catch
+        try {
+            $connected = @$mysqli->real_connect(
+                $this->host,
+                $this->username,
+                $this->password,
+                $this->database,
+                $this->port,
+                null,
+                $client_flags
+            );
 
-        if (!$connected || $mysqli->connect_errno) {
-            $this->error = $mysqli->connect_error ?: "Could not connect to database on {$this->host}:{$this->port}";
+            if (!$connected || $mysqli->connect_errno) {
+                $this->error = $mysqli->connect_error ?: "Could not connect to database on {$this->host}:{$this->port}";
+                $this->db = null;
+            } else {
+                $this->db = $mysqli;
+                $this->db->set_charset("utf8mb4");
+            }
+        } catch (\Throwable $e) {
+            $this->error = $e->getMessage();
             $this->db = null;
-        } else {
-            $this->db = $mysqli;
-            $this->db->set_charset("utf8mb4");
         }
     }
 
