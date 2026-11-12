@@ -15,24 +15,23 @@ Class Actions extends DBConnection{
         if (!$this->db || !$this->is_connected()) {
             $resp['status'] = "failed";
             $err_msg = $this->get_error() ?: "Cannot connect to MySQL server";
-            $resp['msg'] = "Database is not connected ({$err_msg}). Please open db_setup.php to configure database.";
+            $resp['msg'] = "Database is not connected ({$err_msg}). Please check connection settings in db_setup.php.";
             return json_encode($resp);
         }
+
+        // Auto-import database tables if missing
+        $this->auto_import_db();
+
         $username = $this->db->real_escape_string($username ?? '');
         $password = $password ?? '';
         $sql = "SELECT * FROM user_list where username = '{$username}' and `password` = '".md5($password)."' ";
         $qry = @$this->db->query($sql);
         if(!$qry || !($qry instanceof mysqli_result)){
             $resp['status'] = "failed";
-            $db_err = $this->db->error;
-            if(strpos($db_err, "doesn't exist") !== false || strpos($db_err, "user_list") !== false){
-                $resp['msg'] = "Tables not imported yet! Please open db_setup.php and click '1-Click Import DB'.";
-            } else {
-                $resp['msg'] = "Database query error: {$db_err}";
-            }
+            $resp['msg'] = "Database error: " . ($this->db->error ?: "Query failed.");
         }else if($qry->num_rows == 0){
             $resp['status'] = "failed";
-            $resp['msg'] = "Invalid username or password. Default is admin / admin123.";
+            $resp['msg'] = "Invalid username or password. Default admin is admin / admin123.";
         }else{
             $row = $qry->fetch_array();
             $resp['status'] = "success";

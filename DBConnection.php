@@ -82,11 +82,66 @@ class DBConnection {
             } else {
                 $this->db = $mysqli;
                 $this->db->set_charset("utf8mb4");
+                // Automatically import database schema and admin user if tables are missing
+                $this->auto_import_db();
             }
         } catch (\Throwable $e) {
             $this->error = $e->getMessage();
             $this->db = null;
         }
+    }
+
+    public function auto_import_db(){
+        if (!$this->db || !($this->db instanceof mysqli) || $this->db->connect_errno) {
+            return false;
+        }
+
+        // Quick check if user_list already exists
+        $check = @$this->db->query("SHOW TABLES LIKE 'user_list'");
+        if ($check && $check->num_rows > 0) {
+            return true;
+        }
+
+        $sql_file = __DIR__ . '/database/bsms_db.sql';
+        if (!file_exists($sql_file)) {
+            return false;
+        }
+
+        $sql_content = file_get_contents($sql_file);
+        if (empty($sql_content)) {
+            return false;
+        }
+
+        @$this->db->query("SET FOREIGN_KEY_CHECKS = 0;");
+        @$this->db->query("SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';");
+
+        $lines = explode("\n", $sql_content);
+        $clean_sql = "";
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if (empty($trimmed) || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*') || str_starts_with($trimmed, '//')) {
+                continue;
+            }
+            $clean_sql .= $line . "\n";
+        }
+
+        $statements = preg_split('/;\s*[\r\n]+/', $clean_sql);
+        foreach ($statements as $stmt) {
+            $stmt = trim($stmt);
+            if (!empty($stmt)) {
+                @$this->db->query($stmt);
+            }
+        }
+
+        // Guarantee admin user exists with password admin123
+        $admin_chk = @$this->db->query("SELECT user_id FROM user_list WHERE username = 'admin'");
+        if (!$admin_chk || $admin_chk->num_rows == 0) {
+            $p = md5('admin123');
+            @$this->db->query("INSERT INTO user_list (fullname, username, password, type, status) VALUES ('Administrator', 'admin', '{$p}', 1, 1)");
+        }
+
+        @$this->db->query("SET FOREIGN_KEY_CHECKS = 1;");
+        return true;
     }
 
     function db_connect(){
